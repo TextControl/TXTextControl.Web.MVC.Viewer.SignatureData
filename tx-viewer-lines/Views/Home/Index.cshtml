@@ -1,0 +1,80 @@
+﻿@using TXTextControl.Web.MVC.DocumentViewer
+
+@Html.TXTextControl().DocumentViewer(settings =>
+    {
+        settings.DocumentPath = "App_Data/test.tx";
+        settings.Dock = DocumentViewerSettings.DockStyle.Fill;
+        settings.IsSelectionActivated = false;
+        settings.ShowThumbnailPane = true;
+        settings.SignatureSettings = new SignatureSettings()
+    {
+        ShowSignatureBar = true,
+        OwnerName = "Paul Paulsen",
+        SignerName = "Tim Typer",
+        SignerInitials = "TT",
+        RedirectUrlAfterSignature = this.Url.Action(
+         "HandleSignature",
+         "Home",
+         null,
+         Context.Request.Scheme,
+         null),
+        SignatureBoxes = new SignatureBox[] {
+            new SignatureBox("txsign") { SigningRequired = true, Style = SignatureBox.SignatureBoxStyle.Signature }
+          }
+    };
+
+    }).Render()
+
+<canvas width="660" height="104" id="signature"></canvas>
+
+<script>
+
+    // wait until the document viewer is loaded
+    window.addEventListener("documentViewerLoaded", function () {
+        // set the callback function
+        TXDocumentViewer.signatures.setSubmitCallback(signatureComplete);
+    });
+
+    function signatureComplete(e) {
+        // handle the signature
+        handleSignature(e);
+        console.log(e);
+    }
+
+    async function handleSignature(lines) {
+        const canvas = document.getElementById("signature");
+        const ctx = canvas.getContext("2d");
+        const signature = JSON.parse(lines);
+
+        ctx.beginPath();
+        ctx.strokeStyle = "blue";
+        ctx.lineWidth = 5;
+
+        for (let segment = 0; segment < signature.length; segment++) {
+            for (let i = 0; i < signature[segment].length; i++) {
+                const { x, y, creationTimeStamp } = signature[segment][i];
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    // calculate the duration between the current and the previous line
+                    const duration = creationTimeStamp - signature[segment][i - 1].creationTimeStamp;
+                    await drawLine(ctx, x, y, duration);
+                    ctx.stroke(); // stroke the line
+                }
+            }
+        }
+       
+    }
+
+    // draw a line with a delay
+    function drawLine(ctx, x, y, duration) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                ctx.lineTo(x, y);
+                resolve();
+            }, duration);
+        });
+    }
+
+</script>
